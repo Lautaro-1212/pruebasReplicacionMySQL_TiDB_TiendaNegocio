@@ -50,6 +50,8 @@ const emptyTable = async () => {
   }
 }
 
+createTableProductos();
+
 app.use(express.json());
 
 app.post('/insert', async (req, res) => {
@@ -69,11 +71,6 @@ app.delete('/empty', async (req, res) => {
   await emptyTable();
   contador = 0;
   res.send('Tabla vaciada correctamente');
-});
-
-app.get('/create', async (req, res) => {
-  await createTableProductos();
-  res.send('Tabla creada correctamente');
 });
 
 
