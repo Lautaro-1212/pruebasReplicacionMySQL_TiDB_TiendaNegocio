@@ -88,7 +88,7 @@ En otra terminal probar libremente las operaciones:
 
 ##
 
-<span style="font-size: 25px">**Prueba1:**</span>
+<span style="font-size: 25px">**Prueba2:**</span>
 
 Ir hacia la prueba
 
