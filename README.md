@@ -157,6 +157,33 @@ curl -X POST http://localhost:3010/insert \
 
 curl http://localhost:3010/products       
 ```
+##
+
+<span style="font-size: 25px">**Prueba3:**</span>
+
+Ir a la prueba:
+
+```bash
+cd prueba3
+```
+
+Levantar el Cluster de TiDB, Grafana y Prometheus.
+
+```bash
+docker compose up
+```
+
+Para entrar al Dashboard de TiDB entrar a esta URL:
+
+<http://localhost:2379/dashboard/>
+
+Ingresar escribiendo "root" en username.
+
+Ir a la parte que dice: "Change Prometheus Addres".
+
+Cambiar en "Service Endpoints" a "Use customized address" y poner de puerto "http://prometheus:9090".
+
+Con eso ya tendrias la mayoria de los graficos del Dashboard de TiDB.
 
 
 
