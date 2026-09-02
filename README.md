@@ -20,7 +20,10 @@
 
 - Prueba2: Crear un cluster con 3 nodos TiKV y verificar que los datos escritos en el Leader sean replicados a los Followers.
 
-- Prueba3: Usar el mismo entorno de la prueba2, pero comprobar si el sistema de failover es eficaz.
+- Prueba2.1: Usar el mismo entorno de la prueba2, pero comprobar si el sistema de failover es eficaz.
+
+- Prueba3: Agregar Prometheus y Grafana al Docker Compose, para que en el Dashboard de TiDB sea tenga mas graficos.
+
 ##
 
 <span style="font-size: 30px">**Como probar cada prueba:**</span>
@@ -184,8 +187,3 @@ Ir a la parte que dice: "Change Prometheus Addres".
 Cambiar en "Service Endpoints" a "Use customized address" y poner de puerto "http://prometheus:9090".
 
 Con eso ya tendrias la mayoria de los graficos del Dashboard de TiDB.
-
-
-
-
-
