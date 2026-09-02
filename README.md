@@ -22,7 +22,7 @@
 
 - Prueba2.1: Usar el mismo entorno de la prueba2, pero comprobar si el sistema de failover es eficaz.
 
-- Prueba3: Agregar Prometheus y Grafana al Docker Compose, para que en el Dashboard de TiDB sea tenga mas graficos.
+- Prueba3: Agregar Prometheus y Grafana al Docker Compose, para que en el Dashboard de TiDB tenga mas graficos.
 
 ##
 
