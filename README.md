@@ -90,7 +90,7 @@ En otra terminal probar libremente las operaciones:
 
 ##
 
-<span style="font-size: 25px">**Prueba2:**</span>
+<span style="font-size: 25px">**Prueba1.1:**</span>
 
 Ir hacia la prueba:
 
@@ -120,7 +120,7 @@ curl http://localhost:3010/products
 
 ##
 
-<span style="font-size: 25px">**Prueba3:**</span>
+<span style="font-size: 25px">**Prueba1.2:**</span>
 
 Ir hacia la prueba:
 
