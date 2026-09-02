@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+
+  - job_name: "pd"
+    static_configs:
+      - targets:
+          - "pd:2379"
+
+  - job_name: "tikv"
+    static_configs:
+      - targets:
+          - "tikv1:20180"
+          - "tikv2:20180"
+          - "tikv3:20180"
+
+  - job_name: "tidb"
+    static_configs:
+      - targets:
+          - "tidb:10080"
