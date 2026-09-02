@@ -103,6 +103,10 @@ Hacer lo mismo que en la prueba1.
 Para probar que la replicaciones funciona hace un INSERT, hay tirar uno de los nodos y ver si sigue devolviendo los datos, si es asi levantarlo de nuevo y bajar el nodo restante:
 
 ```bash
+curl -X POST http://localhost:3010/insert \
+  -H "Content-Type: application/json" \
+  -d '{"producto":"INSERT-ejemplo"}'
+
 docker compose stop tikv2
 
 curl http://localhost:3010/products
@@ -150,6 +154,8 @@ docker compose stop tikv3
 curl -X POST http://localhost:3010/insert \
   -H "Content-Type: application/json" \
   -d '{"producto":"INSERT-ejemplo"}'
+
+curl http://localhost:3010/products       
 ```
 
 
