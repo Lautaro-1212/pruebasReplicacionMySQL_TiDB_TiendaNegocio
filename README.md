@@ -10,6 +10,8 @@
 
 - TiDB cluster v8.5.8 
 
+- Multipass 1.16.3
+
 ## Objetivo 
 
 - Conseguir un sistema de replicacion usando TiDB, y viendo como implementa el Failover y el rejoin.
@@ -24,6 +26,7 @@
 
 - Prueba3: Agregar Prometheus y Grafana al Docker Compose, para que en el Dashboard de TiDB tenga mas graficos.
 
+- Prueba4: Usando Multipass crear un nodo TiKV y conectarlo al Cluster de la PC original. 
 ##
 
 <span style="font-size: 30px">**Como probar cada prueba:**</span>
@@ -187,3 +190,131 @@ Ir a la parte que dice: "Change Prometheus Addres".
 Cambiar en "Service Endpoints" a "Use customized address" y poner de puerto "http://prometheus:9090".
 
 Con eso ya tendrias la mayoria de los graficos del Dashboard de TiDB.
+
+##
+
+<span style="font-size: 25px">**Prueba4:**</span>
+
+Ir a la prueba: 
+
+```bash 
+cd prueba4
+```
+
+Instalar las dependencias:
+
+```bash
+npm i
+```
+
+Crear una instania de Multipass:
+
+```bash
+multipass launch 26.04 --name tidb-vm1 --cpus 2 --memory 6G --disk 18G
+```
+
+Una vez creada la instancia, comproba si se instalo:
+
+```bash
+multipass list
+```
+
+Si la instancia no esta corriendo, podes iniciarla con:
+
+```bash
+multipass start tidb-vm1
+```
+
+Entrar a la instancia:
+
+```bash
+multipass shell tidb-vm1
+```
+
+Actualizar el sistema de la VM:
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+```
+
+Crear usuario y directorios para el TiKV:
+
+```bash
+sudo mkdir -p /opt/tikv/bin
+sudo mkdir -p /var/lib/tikv
+sudo mkdir -p /var/log/tikv
+
+sudo useradd --system \
+  --home /var/lib/tikv \
+  --shell /usr/sbin/nologin \
+  tikv
+```
+
+Dar permisos al usuario para acceder a esas carpetas:
+
+```bash
+sudo chown -R tikv:tikv /opt/tikv
+sudo chown -R tikv:tikv /var/lib/tikv
+sudo chown -R tikv:tikv /var/log/tikv
+```
+
+Descargar TiKV:
+
+```bash
+cd /tmp
+wget https://tiup-mirrors.pingcap.com/tikv-v8.5.8-linux-amd64.tar.gz
+```
+
+Una vez descargado el modulo, descomprimir el archivo, moverlo a la carpeta que creamos y darle permisos:
+
+```bash
+tar -xzf tikv-v8.5.8-linux-amd64.tar.gz
+
+sudo cp /tmp/tikv-server /opt/tikv/bin/
+
+sudo chown tikv:tikv /opt/tikv/bin/tikv-server
+sudo chmod +x /opt/tikv/bin/tikv-server
+```
+
+Para comprobar si se instalo correctamente verificaremos la version:
+
+```bash
+/opt/tikv/bin/tikv-server -V
+```
+
+Si devuelve la version, inicia el archivo de configuracion:
+
+```bash
+./setup.sh
+```
+
+En otra terminal en tu maquina, comproba si en el Cluster se agrego correctamente el nuevo TiKV:
+
+```bash
+source .env && curl -s "http://${MULTIPASS_IP}:2379/pd/api/v1/stores" | jq '.stores[] | {
+  id: .store.id,
+  address: .store.address,
+  state: .store.state_name,
+  regions: .status.region_count
+}'
+```
+
+En la salida tendrias que ver dos objetos en la lista. 
+
+ACLARACION:
+ Si cuando ejecutas el script de configuracion te salta un error, se puede borrar tanto la configuracion del cluster y de la VM:
+```bash
+docker compose down -v
+
+multipass exec tidb-vm1 -- sudo systemctl stop tikv
+multipass exec tidb-vm1 -- sudo find /var/lib/tikv -mindepth 1 -delete
+multipass exec tidb-vm1 -- sudo systemctl restart tikv
+multipass exec tidb-vm1 -- sudo systemctl status tikv --no-pager
+```
+
+Y volver iniciar el script:
+
+```bash
+./setup.sh
+```
