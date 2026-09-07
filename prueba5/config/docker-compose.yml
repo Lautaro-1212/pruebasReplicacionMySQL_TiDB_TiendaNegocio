@@ -7,10 +7,10 @@ services:
       - --name=pd
       - --data-dir=/data/pd
       - --client-urls=http://0.0.0.0:2379
-      - --advertise-client-urls=http://${PD_HOST}:2379
+      - --advertise-client-urls=http://${MULTIPASS_IP}:2379
       - --peer-urls=http://0.0.0.0:2380
-      - --advertise-peer-urls=http://${PD_HOST}:2380
-      - --initial-cluster=pd=http://${PD_HOST}:2380
+      - --advertise-peer-urls=http://${MULTIPASS_IP}:2380
+      - --initial-cluster=pd=http://${MULTIPASS_IP}:2380
     volumes:
       - pd-data:/data/pd
     ports:
@@ -21,9 +21,9 @@ services:
     image: pingcap/tikv:v8.5.8
     container_name: tidb-tikv
     command:
-      - --pd=${PD_HOST}:2379
+      - --pd=${MULTIPASS_IP}:2379
       - --addr=0.0.0.0:20160
-      - --advertise-addr=${PD_HOST}:20160
+      - --advertise-addr=${MULTIPASS_IP}:20160
       - --data-dir=/data/tikv
     depends_on:
       - pd

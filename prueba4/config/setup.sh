@@ -97,7 +97,7 @@ echo
 info "Generando .env..."
 
 cat > .env <<EOF
-MULTIPASS_IP=$MULTIPASS_IP
+PD_HOST=$MULTIPASS_IP
 VM_NAME_PREFIX=$VM_PREFIX
 TIKV_VM_COUNT=${#VM_NAMES[@]}
 EOF
