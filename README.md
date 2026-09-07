@@ -1,4 +1,4 @@
-## Requisitos
+## Requisitos minimos
 
 - Docker version 29.6.1, build 8900f1d
 
@@ -11,6 +11,8 @@
 - TiDB cluster v8.5.8 
 
 - Multipass 1.16.3
+
+- 13 GB RAM para correr 3 VMs con TiKV
 
 ## Objetivo 
 
@@ -26,7 +28,7 @@
 
 - Prueba3: Agregar Prometheus y Grafana al Docker Compose, para que en el Dashboard de TiDB tenga mas graficos.
 
-- Prueba4: Usando Multipass crear un nodo TiKV y conectarlo al Cluster de la PC original. 
+- Prueba4: Usando Multipass crear nodos TiKV y conectarlo al Cluster de la PC original. 
 ##
 
 <span style="font-size: 30px">**Como probar cada prueba:**</span>
