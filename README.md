@@ -208,19 +208,34 @@ npm i
 ```
 
 Crear una instancia con el nodo TiKV dentro:
+
 ```bash
 multipass launch 26.04 \
   --name tidb-vm1 \
   --cpus 2 \
-  --memory 6G \
-  --disk 18G \
+  --memory 4G \
+  --disk 16G \
   --cloud-init tikv-cloud-init.yaml
+```
+
+ACLARACION: Todas las VMs tienen que llamarse tidb-vm y terminar en un numero, ya que si no el script no detecta la VM y no se va a configurar.
+
+Para probar si se creo correctamente:
+
+```bash
+multipass exec tidb-vm1 -- /opt/tikv/bin/tikv-server -V
+```
+
+Cuando tengas todas tus VMs creadas ejecuta el Script para conectarlas con el pd:
+
+```bash
+./setup.sh
 ```
 
 Crear una instania de Multipass vacia:
 
 ```bash
-multipass launch 26.04 --name tidb-vm1 --cpus 2 --memory 6G --disk 18G
+multipass launch 26.04 --name tidb-vm1 --cpus 2 --memory 4G --disk 16G
 ```
 
 Una vez creada la instancia, comproba si se instalo:

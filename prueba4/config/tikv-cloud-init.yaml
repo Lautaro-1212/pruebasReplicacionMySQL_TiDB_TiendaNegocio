@@ -1,11 +1,10 @@
 #cloud-config
 
 # ==========================================
-# Actualizar sistema
+# Actualizar índices de paquetes
 # ==========================================
 
 package_update: true
-package_upgrade: true
 
 
 # ==========================================
@@ -17,21 +16,15 @@ packages:
 
 
 # ==========================================
-# Crear usuario TiKV
-# ==========================================
-
-users:
-  - name: tikv
-    system: true
-    home: /var/lib/tikv
-    shell: /usr/sbin/nologin
-
-
-# ==========================================
 # Instalación de TiKV
 # ==========================================
 
 runcmd:
+
+  # Crear usuario TiKV
+
+  - useradd --system --home-dir /var/lib/tikv --shell /usr/sbin/nologin tikv
+
 
   # Crear directorios
 

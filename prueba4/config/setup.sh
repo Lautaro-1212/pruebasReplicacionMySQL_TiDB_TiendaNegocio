@@ -1,10 +1,6 @@
 #!/bin/bash
 
-VM_NAME="tidb-vm1"
-
-# ==========================================
-# Funciones de salida
-# ==========================================
+VM_PREFIX="tidb-vm"
 
 ok() {
     echo "  ✓ $1"
@@ -18,10 +14,6 @@ error() {
     echo "  ✗ $1"
 }
 
-# ==========================================
-# Inicio
-# ==========================================
-
 clear
 
 echo "========================================"
@@ -30,7 +22,7 @@ echo "========================================"
 echo
 
 # ==========================================
-# Detectar IP del bridge de Multipass
+# Detectar IP de Multipass
 # ==========================================
 
 info "Detectando IP de Multipass..."
@@ -47,44 +39,114 @@ fi
 
 ok "Bridge: $MULTIPASS_IP"
 
+
 # ==========================================
-# Detectar IP de la VM
+# Detectar VMs TiKV
 # ==========================================
 
-info "Detectando IP de $VM_NAME..."
+info "Detectando VMs TiKV..."
 
-VM_IP=$(multipass list | awk -v vm="$VM_NAME" '$1 == vm {
-    print $3
-}')
+mapfile -t VM_DATA < <(
+    multipass list --format json |
+    jq -r --arg prefix "$VM_PREFIX" '
+        .list[]
+        | select(.name | startswith($prefix))
+        | select((.state | ascii_upcase) == "RUNNING")
+        | select(.ipv4 | length > 0)
+        | "\(.name)|\(.ipv4[0])"
+    ' |
+    sort
+)
 
-if [[ -z "$VM_IP" ]]; then
-    error "No se pudo detectar la IP de $VM_NAME."
+if [[ ${#VM_DATA[@]} -eq 0 ]]; then
+    error "No se encontraron VMs TiKV ejecutándose."
+    echo
+    echo "Se esperan VMs con nombres como:"
+    echo "  tidb-vm1"
+    echo "  tidb-vm2"
+    echo "  tidb-vm3"
     exit 1
 fi
 
-ok "VM: $VM_IP"
+echo
+
+info "VMs encontradas: ${#VM_DATA[@]}"
+
+declare -a VM_NAMES
+declare -a VM_IPS
+
+for DATA in "${VM_DATA[@]}"; do
+
+    VM_NAME="${DATA%%|*}"
+    VM_IP="${DATA#*|}"
+
+    VM_NAMES+=("$VM_NAME")
+    VM_IPS+=("$VM_IP")
+
+    echo "    $VM_NAME → $VM_IP"
+
+done
+
 
 # ==========================================
 # Generar .env
 # ==========================================
 
+echo
+
 info "Generando .env..."
 
 cat > .env <<EOF
 MULTIPASS_IP=$MULTIPASS_IP
-TIKV_VM_IP=$VM_IP
-VM_NAME=$VM_NAME
+VM_NAME_PREFIX=$VM_PREFIX
+TIKV_VM_COUNT=${#VM_NAMES[@]}
 EOF
 
 ok ".env generado"
 
+
 # ==========================================
-# Generar servicio TiKV
+# Levantar Docker
 # ==========================================
 
-info "Generando configuración de TiKV..."
+echo
 
-cat > ./tikv.service <<EOF
+info "Levantando servicios Docker..."
+
+if ! docker compose up -d >/dev/null; then
+    error "No se pudieron levantar los servicios Docker."
+    exit 1
+fi
+
+ok "PD iniciado"
+ok "TiKV Docker iniciado"
+ok "TiDB iniciado"
+
+
+# ==========================================
+# Configurar TiKV en cada VM
+# ==========================================
+
+echo
+
+info "Configurando TiKV en las VMs..."
+
+for i in "${!VM_NAMES[@]}"; do
+
+    VM_NAME="${VM_NAMES[$i]}"
+    VM_IP="${VM_IPS[$i]}"
+
+    echo
+    echo "  --------------------------------------"
+    echo "  Configurando: $VM_NAME"
+    echo "  IP: $VM_IP"
+    echo "  --------------------------------------"
+
+    # --------------------------------------
+    # Generar service para esta VM
+    # --------------------------------------
+
+    cat > ./tikv.service <<EOF
 [Unit]
 Description=TiKV Server
 After=network-online.target
@@ -112,85 +174,185 @@ LimitNOFILE=1000000
 WantedBy=multi-user.target
 EOF
 
-ok "tikv.service generado"
+    # --------------------------------------
+    # Transferir service
+    # --------------------------------------
 
-# ==========================================
-# Levantar Docker
-# ==========================================
+    if ! multipass transfer \
+        ./tikv.service \
+        "$VM_NAME":/tmp/tikv.service >/dev/null; then
 
-echo
-info "Levantando servicios Docker..."
+        error "No se pudo transferir tikv.service a $VM_NAME."
+        exit 1
+    fi
 
-if ! docker compose up -d >/dev/null; then
-    error "No se pudieron levantar los servicios Docker."
-    exit 1
-fi
+    # --------------------------------------
+    # Instalar service
+    # --------------------------------------
 
-ok "PD iniciado"
-ok "TiKV Docker iniciado"
-ok "TiDB iniciado"
+    if ! multipass exec "$VM_NAME" -- sudo mv \
+        /tmp/tikv.service \
+        /etc/systemd/system/tikv.service; then
 
-# ==========================================
-# Configurar TiKV en la VM
-# ==========================================
+        error "No se pudo instalar el servicio TiKV en $VM_NAME."
+        exit 1
+    fi
 
-echo
-info "Configurando TiKV en $VM_NAME..."
+    # --------------------------------------
+    # Reiniciar TiKV
+    # --------------------------------------
 
-if ! multipass transfer ./tikv.service "$VM_NAME":/tmp/tikv.service >/dev/null; then
-    error "No se pudo transferir tikv.service."
-    exit 1
-fi
-
-if ! multipass exec "$VM_NAME" -- sudo mv \
-    /tmp/tikv.service \
-    /etc/systemd/system/tikv.service; then
-    error "No se pudo instalar el servicio TiKV."
-    exit 1
-fi
-
-multipass exec "$VM_NAME" -- sudo systemctl daemon-reload
-multipass exec "$VM_NAME" -- sudo systemctl enable tikv >/dev/null
-multipass exec "$VM_NAME" -- sudo systemctl restart tikv
-
-# ==========================================
-# Verificar TiKV
-# ==========================================
-
-sleep 3
-
-if multipass exec "$VM_NAME" -- \
-    sudo systemctl is-active --quiet tikv; then
-    ok "TiKV VM iniciado"
-else
-    error "TiKV VM no está funcionando."
-    echo
-    echo "Últimos logs:"
     multipass exec "$VM_NAME" -- \
-        sudo journalctl -u tikv -n 20 --no-pager
-    exit 1
-fi
+        sudo systemctl daemon-reload
+
+    multipass exec "$VM_NAME" -- \
+        sudo systemctl enable tikv >/dev/null
+
+    multipass exec "$VM_NAME" -- \
+        sudo systemctl restart tikv
+
+    sleep 2
+
+    # --------------------------------------
+    # Verificar TiKV
+    # --------------------------------------
+
+    if multipass exec "$VM_NAME" -- \
+        sudo systemctl is-active --quiet tikv; then
+
+        ok "$VM_NAME: TiKV iniciado"
+
+    else
+
+        error "$VM_NAME: TiKV no está funcionando."
+
+        echo
+        echo "Últimos logs de $VM_NAME:"
+
+        multipass exec "$VM_NAME" -- \
+            sudo journalctl -u tikv -n 20 --no-pager
+
+        exit 1
+    fi
+
+done
+
 
 # ==========================================
-# Verificar PD
+# Verificar TiKV registrados en PD
 # ==========================================
 
 echo
+
 info "Verificando TiKV registrados en PD..."
 
-STORE_COUNT=$(curl -s \
-    "http://${MULTIPASS_IP}:2379/pd/api/v1/stores" |
-    jq -r '.count')
+sleep 10
 
-if [[ "$STORE_COUNT" != "2" ]]; then
-    error "PD no tiene 2 TiKV registrados. Encontrados: ${STORE_COUNT:-0}"
+STORES_JSON=$(
+    curl -sf \
+        "http://${MULTIPASS_IP}:2379/pd/api/v1/stores"
+)
+
+if [[ $? -ne 0 || -z "$STORES_JSON" ]]; then
+    error "No se pudo consultar PD."
     exit 1
 fi
 
-ok "PD detecta 2 TiKV"
 
 # ==========================================
-# Mostrar nodos
+# Mostrar stores detectados
+# ==========================================
+
+echo
+
+info "TiKV registrados en PD:"
+
+echo "$STORES_JSON" |
+    jq -r '
+        .stores[] |
+        "    \(.store.address) → \(.store.state_name)"
+    '
+
+
+# ==========================================
+# Verificar Docker TiKV
+# ==========================================
+
+DOCKER_TIKV_OK=$(
+    echo "$STORES_JSON" |
+    jq -r '
+        .stores[]
+        | select(.store.address == "'${MULTIPASS_IP}':20160")
+        | .store.state_name
+    ' |
+    head -n 1
+)
+
+if [[ "$DOCKER_TIKV_OK" != "Up" ]]; then
+    error "El TiKV Docker no aparece como Up en PD."
+    exit 1
+fi
+
+ok "TiKV Docker registrado en PD"
+
+
+# ==========================================
+# Verificar cada VM
+# ==========================================
+
+FAILED=0
+
+for i in "${!VM_NAMES[@]}"; do
+
+    VM_NAME="${VM_NAMES[$i]}"
+    VM_IP="${VM_IPS[$i]}"
+
+    STATE=$(
+        echo "$STORES_JSON" |
+        jq -r --arg address "${VM_IP}:20160" '
+            .stores[]
+            | select(.store.address == $address)
+            | .store.state_name
+        ' |
+        head -n 1
+    )
+
+    if [[ "$STATE" == "Up" ]]; then
+
+        ok "$VM_NAME ($VM_IP:20160) → Up"
+
+    else
+
+        error "$VM_NAME ($VM_IP:20160) → ${STATE:-NO REGISTRADO}"
+
+        FAILED=1
+
+    fi
+
+done
+
+
+# ==========================================
+# Resultado
+# ==========================================
+
+if [[ "$FAILED" -ne 0 ]]; then
+
+    echo
+    error "Uno o más TiKV no están registrados correctamente en PD."
+
+    echo
+    echo "Podés revisar los stores con:"
+    echo
+    echo "  source .env && curl -s \\"
+    echo '    "http://${MULTIPASS_IP}:2379/pd/api/v1/stores" | jq'
+
+    exit 1
+fi
+
+
+# ==========================================
+# Resumen
 # ==========================================
 
 echo
@@ -198,15 +360,28 @@ echo "========================================"
 echo "           CLÚSTER ACTIVO"
 echo "========================================"
 echo
+
 echo "  PD"
 echo "    $MULTIPASS_IP:2379"
 echo
+
 echo "  TiKV"
+
 echo "    $MULTIPASS_IP:20160  (Docker)"
-echo "    $VM_IP:20160        (Multipass)"
+
+for i in "${!VM_NAMES[@]}"; do
+    echo "    ${VM_IPS[$i]}:20160        (${VM_NAMES[$i]})"
+done
+
 echo
+
 echo "  TiDB"
 echo "    localhost:4000"
+
+echo
+echo "  Total TiKV:"
+echo "    $(( ${#VM_NAMES[@]} + 1 ))"
+
 echo
 echo "========================================"
 echo "       CONFIGURACIÓN COMPLETADA"
