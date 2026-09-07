@@ -207,7 +207,17 @@ Instalar las dependencias:
 npm i
 ```
 
-Crear una instania de Multipass:
+Crear una instancia con el nodo TiKV dentro:
+```bash
+multipass launch 26.04 \
+  --name tidb-vm1 \
+  --cpus 2 \
+  --memory 6G \
+  --disk 18G \
+  --cloud-init tikv-cloud-init.yaml
+```
+
+Crear una instania de Multipass vacia:
 
 ```bash
 multipass launch 26.04 --name tidb-vm1 --cpus 2 --memory 6G --disk 18G

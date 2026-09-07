@@ -1,0 +1,77 @@
+#cloud-config
+
+# ==========================================
+# Actualizar sistema
+# ==========================================
+
+package_update: true
+package_upgrade: true
+
+
+# ==========================================
+# Paquetes necesarios
+# ==========================================
+
+packages:
+  - wget
+
+
+# ==========================================
+# Crear usuario TiKV
+# ==========================================
+
+users:
+  - name: tikv
+    system: true
+    home: /var/lib/tikv
+    shell: /usr/sbin/nologin
+
+
+# ==========================================
+# Instalación de TiKV
+# ==========================================
+
+runcmd:
+
+  # Crear directorios
+
+  - mkdir -p /opt/tikv/bin
+  - mkdir -p /var/lib/tikv
+  - mkdir -p /var/log/tikv
+
+
+  # Configurar permisos
+
+  - chown -R tikv:tikv /opt/tikv
+  - chown -R tikv:tikv /var/lib/tikv
+  - chown -R tikv:tikv /var/log/tikv
+
+
+  # Descargar TiKV
+
+  - cd /tmp && wget https://tiup-mirrors.pingcap.com/tikv-v8.5.8-linux-amd64.tar.gz
+
+
+  # Extraer TiKV
+
+  - cd /tmp && tar -xzf tikv-v8.5.8-linux-amd64.tar.gz
+
+
+  # Instalar binario
+
+  - cp /tmp/tikv-server /opt/tikv/bin/tikv-server
+
+
+  # Configurar propietario
+
+  - chown tikv:tikv /opt/tikv/bin/tikv-server
+
+
+  # Dar permisos de ejecución
+
+  - chmod +x /opt/tikv/bin/tikv-server
+
+
+  # Verificar instalación
+
+  - /opt/tikv/bin/tikv-server -V
